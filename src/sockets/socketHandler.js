@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
 const initializeSockets = (io) => {
-  // Socket.IO Authentication Middleware
+  
   io.use(async (socket, next) => {
     const token = socket.handshake.auth.token || socket.handshake.headers['x-auth-token'];
     if (!token) {
@@ -21,25 +21,21 @@ const initializeSockets = (io) => {
     }
   });
 
-  // Socket.IO Events Registration
   io.on('connection', (socket) => {
     const userRoom = `user_${socket.user._id.toString()}`;
     socket.join(userRoom);
     console.log(`User connected to Socket.IO: ${socket.user.username} (ID: ${socket.id}, Room: ${userRoom})`);
 
-    // Join project room
     socket.on('join_project', (projectId) => {
       socket.join(projectId);
       console.log(`User ${socket.user.username} joined project room: ${projectId}`);
     });
 
-    // Leave project room
     socket.on('leave_project', (projectId) => {
       socket.leave(projectId);
       console.log(`User ${socket.user.username} left project room: ${projectId}`);
     });
 
-    // Handle user action state (e.g. typing activity)
     socket.on('user_action', (data) => {
       const { projectId, action, taskId } = data;
       socket.to(projectId).emit('user_action', {

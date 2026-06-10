@@ -22,7 +22,7 @@ const UserSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Please add a password'],
       minlength: 6,
-      select: false, // Don't return password hash by default in queries
+      select: false, 
     },
   },
   {
@@ -30,7 +30,6 @@ const UserSchema = new mongoose.Schema(
   }
 );
 
-// Hash password before saving
 UserSchema.pre('save', async function (next) {
   if (!this.isModified('password')) {
     return next();
@@ -40,7 +39,6 @@ UserSchema.pre('save', async function (next) {
   next();
 });
 
-// Compare password hash method
 UserSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };

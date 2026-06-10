@@ -14,7 +14,6 @@ const registerUser = async ({ username, email, password }) => {
     throw error;
   }
 
-  // Validate email format
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
     const error = new Error('Please enter a valid email address');
@@ -22,7 +21,6 @@ const registerUser = async ({ username, email, password }) => {
     throw error;
   }
 
-  // Check if email already exists
   const emailExists = await User.findOne({ email });
   if (emailExists) {
     const error = new Error('Email already exists');
@@ -30,7 +28,6 @@ const registerUser = async ({ username, email, password }) => {
     throw error;
   }
 
-  // Check if username already exists
   const usernameExists = await User.findOne({ username });
   if (usernameExists) {
     const error = new Error('Username already exists');
@@ -59,7 +56,6 @@ const loginUser = async ({ email, password }) => {
     throw error;
   }
 
-  // Explicitly select password since it has select: false
   const user = await User.findOne({ email }).select('+password');
   if (!user || !(await user.matchPassword(password))) {
     const error = new Error('Invalid email or password');

@@ -30,16 +30,14 @@ const create = async (taskData, io, actorId) => {
     .populate('project', 'name')
     .populate('comments.user', 'username');
 
-  // Real-time socket broadcast to project room
   if (io) {
     const projId = populatedTask.project._id.toString();
     io.to(projId).emit('task_created', populatedTask);
 
-    // Notify other assignees in their personal room
     if (populatedTask.assignees && populatedTask.assignees.length > 0) {
       populatedTask.assignees.forEach((assignee) => {
         const assigneeIdStr = assignee._id.toString();
-        if (actorId && assigneeIdStr === actorId.toString()) return; // skip self-notification
+        if (actorId && assigneeIdStr === actorId.toString()) return; 
         io.to(`user_${assigneeIdStr}`).emit('task_assigned', {
           task: populatedTask,
           project: populatedTask.project,
@@ -65,7 +63,6 @@ const update = async (taskId, updateData, io, actorId) => {
     throw error;
   }
 
-  // Enforce RBAC
   const project = await Project.findById(task.project);
   if (!project) {
     const error = new Error('Project not found');
@@ -75,7 +72,7 @@ const update = async (taskId, updateData, io, actorId) => {
 
   const isOwner = project.owner.toString() === actorId.toString();
   if (!isOwner) {
-    // Check if member
+    
     const isMember = project.members.some(id => id.toString() === actorId.toString());
     if (!isMember) {
       const error = new Error('Access denied: You are not a member of this project');
@@ -83,7 +80,6 @@ const update = async (taskId, updateData, io, actorId) => {
       throw error;
     }
 
-    // Check if assignee
     const isAssignee = task.assignees.some(id => id.toString() === actorId.toString());
     if (!isAssignee) {
       const error = new Error('Access denied: You can only update tasks assigned to you');
@@ -91,7 +87,6 @@ const update = async (taskId, updateData, io, actorId) => {
       throw error;
     }
 
-    // Check what is actually being changed. Members can only change status.
     const allowedUpdates = ['title', 'description', 'status', 'priority', 'assignees', 'order'];
     const attemptedFields = Object.keys(updateData).filter(key => allowedUpdates.includes(key) && updateData[key] !== undefined);
     const changedFields = attemptedFields.filter((key) => {
@@ -115,7 +110,6 @@ const update = async (taskId, updateData, io, actorId) => {
     }
   }
 
-  // Get previous assignees to find newly added and removed assignees
   const oldAssigneeIds = task.assignees ? task.assignees.map(id => id.toString()) : [];
 
   if (updateData.assignees !== undefined) {
@@ -129,13 +123,11 @@ const update = async (taskId, updateData, io, actorId) => {
         const removedUser = await User.findById(userId);
         const username = removedUser ? removedUser.username : 'User';
         
-        // Post a comment indicating why the user was unassigned
         task.comments.push({
           user: actorId,
           text: `🔄 System: ${username} was unassigned from this task. Reason: "${reasonText}"`
         });
         
-        // Emit a socket notification to that specific user's personal room
         if (io) {
           io.to(`user_${userId}`).emit('task_unassigned_notification', {
             taskId,
@@ -149,7 +141,6 @@ const update = async (taskId, updateData, io, actorId) => {
     }
   }
 
-  // Update allowed fields
   const allowedUpdates = ['title', 'description', 'status', 'priority', 'assignees', 'order'];
   allowedUpdates.forEach((key) => {
     if (updateData[key] !== undefined) {
@@ -163,18 +154,16 @@ const update = async (taskId, updateData, io, actorId) => {
     .populate('project', 'name')
     .populate('comments.user', 'username');
 
-  // Real-time socket broadcast to project room
   if (io) {
     const projId = populatedTask.project._id.toString();
     io.to(projId).emit('task_updated', populatedTask);
 
-    // Notify newly added assignees
     if (populatedTask.assignees && populatedTask.assignees.length > 0) {
       populatedTask.assignees.forEach((assignee) => {
         const assigneeIdStr = assignee._id.toString();
-        // Skip self-notification
+        
         if (actorId && assigneeIdStr === actorId.toString()) return;
-        // If they were not in the old list of assignees, notify them!
+        
         if (!oldAssigneeIds.includes(assigneeIdStr)) {
           io.to(`user_${assigneeIdStr}`).emit('task_assigned', {
             task: populatedTask,
@@ -212,7 +201,6 @@ const remove = async (taskId, io, actorId) => {
   const projectId = task.project.toString();
   await task.deleteOne();
 
-  // Real-time socket broadcast to project room
   if (io) {
     io.to(projectId).emit('task_deleted', taskId);
   }
