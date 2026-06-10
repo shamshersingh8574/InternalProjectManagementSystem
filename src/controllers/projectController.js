@@ -31,7 +31,8 @@ const getProjectById = async (req, res, next) => {
 const addMember = async (req, res, next) => {
   try {
     const { email } = req.body;
-    const project = await projectService.inviteMember(req.params.id, email);
+    const io = req.app.get('io');
+    const project = await projectService.inviteMember(req.params.id, email, io);
     res.status(200).json({ success: true, project });
   } catch (error) {
     next(error);
@@ -41,7 +42,8 @@ const addMember = async (req, res, next) => {
 const updateProject = async (req, res, next) => {
   try {
     const { name, description } = req.body;
-    const project = await projectService.update(req.params.id, name, description);
+    const io = req.app.get('io');
+    const project = await projectService.update(req.params.id, name, description, io);
     res.status(200).json({ success: true, project });
   } catch (error) {
     next(error);
@@ -50,7 +52,8 @@ const updateProject = async (req, res, next) => {
 
 const deleteProject = async (req, res, next) => {
   try {
-    await projectService.remove(req.params.id);
+    const io = req.app.get('io');
+    await projectService.remove(req.params.id, io);
     res.status(200).json({ success: true, message: 'Project deleted successfully' });
   } catch (error) {
     next(error);

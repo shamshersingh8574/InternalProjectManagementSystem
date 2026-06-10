@@ -1,5 +1,23 @@
 const mongoose = require('mongoose');
 
+const CommentSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    text: {
+      type: String,
+      required: [true, 'Please add comment text'],
+      trim: true,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
 const TaskSchema = new mongoose.Schema(
   {
     title: {
@@ -32,6 +50,7 @@ const TaskSchema = new mongoose.Schema(
         ref: 'User',
       },
     ],
+    comments: [CommentSchema],
     order: {
       type: Number,
       default: 0,

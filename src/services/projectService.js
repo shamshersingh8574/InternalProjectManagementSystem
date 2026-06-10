@@ -37,7 +37,7 @@ const getById = async (projectId) => {
   return project;
 };
 
-const inviteMember = async (projectId, email) => {
+const inviteMember = async (projectId, email, io) => {
   if (!email) {
     const error = new Error('Email is required to invite a member');
     error.status = 400;
@@ -70,13 +70,23 @@ const inviteMember = async (projectId, email) => {
   project.members.push(user._id);
   await project.save();
 
-  return await Project.findById(projectId).populate(
+  const populatedProject = await Project.findById(projectId).populate(
     'owner members',
     'username email'
   );
+
+  // Real-time socket emissions
+  if (io) {
+    // Notify the invited user in their personal room
+    io.to(`user_${user._id.toString()}`).emit('project_invited', populatedProject);
+    // Broadcast project update to the project room so other members see the new member in real-time
+    io.to(projectId.toString()).emit('project_updated', populatedProject);
+  }
+
+  return populatedProject;
 };
 
-const update = async (projectId, name, description) => {
+const update = async (projectId, name, description, io) => {
   const project = await Project.findById(projectId);
   if (!project) {
     const error = new Error('Project not found');
@@ -88,13 +98,27 @@ const update = async (projectId, name, description) => {
   if (description !== undefined) project.description = description;
 
   await project.save();
-  return await Project.findById(projectId).populate(
+  const populatedProject = await Project.findById(projectId).populate(
     'owner members',
     'username email'
   );
+
+  if (io) {
+    // Broadcast project update to the project room so active board viewers see the new name
+    io.to(projectId.toString()).emit('project_updated', populatedProject);
+
+    // Broadcast project update to all members' personal rooms so dashboard cards update
+    if (populatedProject.members) {
+      populatedProject.members.forEach((member) => {
+        io.to(`user_${member._id.toString()}`).emit('project_updated', populatedProject);
+      });
+    }
+  }
+
+  return populatedProject;
 };
 
-const remove = async (projectId) => {
+const remove = async (projectId, io) => {
   const project = await Project.findById(projectId);
   if (!project) {
     const error = new Error('Project not found');
@@ -106,8 +130,22 @@ const remove = async (projectId) => {
   const Task = require('../models/Task');
   await Task.deleteMany({ project: projectId });
 
+  // Get members list to notify them before deleting
+  const memberIds = project.members ? project.members.map(id => id.toString()) : [];
+
   // Delete the project
   await project.deleteOne();
+
+  if (io) {
+    // Notify users inside the workspace board room
+    io.to(projectId.toString()).emit('project_deleted', projectId);
+
+    // Notify all members on their dashboard to remove the project card
+    memberIds.forEach((memberId) => {
+      io.to(`user_${memberId}`).emit('project_deleted', projectId);
+    });
+  }
+
   return true;
 };
 

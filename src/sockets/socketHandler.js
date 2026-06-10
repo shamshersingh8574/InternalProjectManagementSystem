@@ -23,7 +23,9 @@ const initializeSockets = (io) => {
 
   // Socket.IO Events Registration
   io.on('connection', (socket) => {
-    console.log(`User connected to Socket.IO: ${socket.user.username} (ID: ${socket.id})`);
+    const userRoom = `user_${socket.user._id.toString()}`;
+    socket.join(userRoom);
+    console.log(`User connected to Socket.IO: ${socket.user.username} (ID: ${socket.id}, Room: ${userRoom})`);
 
     // Join project room
     socket.on('join_project', (projectId) => {
