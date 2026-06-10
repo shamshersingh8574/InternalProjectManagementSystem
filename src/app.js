@@ -3,8 +3,6 @@ const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
 const path = require('path');
-const { createClient } = require('redis');
-const { createAdapter } = require('@socket.io/redis-adapter');
 
 // Load environment variables from backend directory parent (reloaded)
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
@@ -38,36 +36,6 @@ const io = socketIo(server, {
   },
 });
 
-// Configure Redis pub/sub socket adapter
-if (process.env.REDIS_URL) {
-  const pubClient = createClient({
-    url: process.env.REDIS_URL,
-    socket: {
-      reconnectStrategy: (retries) => {
-        if (retries > 3) {
-          // Returning an Error will reject the connect() promise and stop reconnect attempts
-          return new Error('Redis connection failed');
-        }
-        return Math.min(retries * 100, 3000);
-      }
-    }
-  });
-  const subClient = pubClient.duplicate();
-
-  pubClient.on('error', (err) => console.log('Redis Pub Client Error:', err.message));
-  subClient.on('error', (err) => console.log('Redis Sub Client Error:', err.message));
-
-  Promise.all([pubClient.connect(), subClient.connect()])
-    .then(() => {
-      io.adapter(createAdapter(pubClient, subClient));
-      console.log('Redis Adapter successfully connected for Socket.IO horizontal scaling');
-    })
-    .catch((err) => {
-      console.error('Redis Adapter failed to initialize, falling back to local Memory adapter:', err.message);
-    });
-} else {
-  console.log('No REDIS_URL provided. Operating in-memory mode.');
-}
 
 // Make io accessible in routing request contexts
 app.set('io', io);
